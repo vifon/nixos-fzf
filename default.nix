@@ -8,11 +8,11 @@ pkgs.buildGoPackage rec {
     (path: type: type != "directory" || baseNameOf path != ".git")
     ./.;
   buildInputs = with pkgs; [
+    makeWrapper
     fzf less
   ];
-  postPatch = with pkgs; ''
-    substituteInPlace nix/attr.go \
-      --replace '"fzf"' '"${fzf}/bin/fzf"' \
-      --replace '"less"' '"${less}/bin/less"'
+  postInstall = with pkgs; ''
+    wrapProgram $out/bin/${pname} \
+      --prefix PATH : ${lib.makeBinPath [ fzf less ]}
   '';
 }
