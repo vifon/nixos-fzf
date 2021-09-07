@@ -3,7 +3,7 @@
 pkgs.buildGoPackage rec {
   pname = "nixos-fzf";
   version = "0.9";
-  goPackagePath = "github.com/vifon/nixos-fzf";
+  goPackagePath = "gitlab.com/wsiewierski/nixos-fzf";
   src = builtins.filterSource
     (path: type: type != "directory" || baseNameOf path != ".git")
     ./.;

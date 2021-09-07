@@ -1,6 +1,6 @@
 package main
 
-import "github.com/vifon/nixos-fzf/nix"
+import "gitlab.com/wsiewierski/nixos-fzf/nix"
 
 func main() {
 	nix.RootAttrset().Browse()
