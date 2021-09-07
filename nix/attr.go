@@ -1,6 +1,7 @@
 package nix
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -8,16 +9,17 @@ import (
 
 // An abstract Nix attribute, possibly nested.
 type Attr interface {
-	Show(string, *Options) error
+	Browse() error
 }
 
 
 // A Nix scalar value.
 type Value struct {
+	Path string
 	Documentation string
 }
 
-func (v Value) Show(attr string, options *Options) error {
+func (v Value) Browse() error {
 	less := exec.Command("less")
 	less.Stdin = strings.NewReader(v.Documentation)
 	less.Stderr = os.Stderr
@@ -28,15 +30,49 @@ func (v Value) Show(attr string, options *Options) error {
 
 // A Nix attribute set.
 type Attrset struct {
+	Path string
 	Attrs []string
+	cache map[string]Attr
 }
 
-func (a Attrset) Show(attr string, options *Options) error {
+func RootAttrset() Attrset {
+	a := Attrset{"", []string{}, make(map[string]Attr)}
+	return a.GetAttr("").(Attrset)
+}
+
+func (a *Attrset) GetAttr(attr string) Attr {
+	if value, contains := a.cache[attr]; contains {
+		return value
+	} else {
+		var attrPath string
+		if len(a.Path) > 0 {
+			attrPath = a.Path + "." + attr
+		} else {
+			attrPath = attr
+		}
+
+		cmd := exec.Command("nixos-option", attrPath)
+		output, err := cmd.Output()
+		if err != nil {
+			log.Panicf("nixos-option failed: %v", err) // FIXME
+		}
+		outputString := string(output)
+		lines := strings.Split(outputString, "\n")
+		if lines[0] == "This attribute set contains:" {
+			a.cache[attr] = Attrset{attrPath, lines[1:], make(map[string]Attr)}
+		} else {
+			a.cache[attr] = Value{attrPath, outputString}
+		}
+		return a.cache[attr]
+	}
+}
+
+func (a Attrset) Browse() error {
 	var prompt string
-	if len(attr) == 0 {
+	if len(a.Path) == 0 {
 		prompt = "> "
 	} else {
-		prompt = attr + "."
+		prompt = a.Path + "."
 	}
 
 	for {
@@ -59,12 +95,6 @@ func (a Attrset) Show(attr string, options *Options) error {
 		}
 
 		newAttr := strings.Split(string(output), "\n")[1]
-		var attrPath string
-		if len(attr) > 0 {
-			attrPath = attr + "." + newAttr
-		} else {
-			attrPath = newAttr
-		}
-		options.Show(attrPath)
+		a.GetAttr(newAttr).Browse()
 	}
 }
