@@ -1,3 +1,3 @@
-module github.com/vifon/nix-fzf
+module github.com/vifon/nixos-fzf
 
 go 1.16
