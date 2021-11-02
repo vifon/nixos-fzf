@@ -9,6 +9,7 @@ import (
 
 // An abstract Nix attribute, possibly nested.
 type Attr interface {
+	// Browse interactively navigates the options tree.
 	Browse() error
 }
 
@@ -19,6 +20,7 @@ type Value struct {
 	Documentation string
 }
 
+// Browse interactively displays the documentation of an option.
 func (v Value) Browse() error {
 	less := exec.Command("less")
 	less.Stdin = strings.NewReader(v.Documentation)
@@ -30,17 +32,35 @@ func (v Value) Browse() error {
 
 // A Nix attribute set.
 type Attrset struct {
+	// The attrpath of the current subtree.
 	Path string
+	// The names of attrs directly inside this attribute set.
 	Attrs []string
+	// A cache mapping the names of attrs of this Attrset to their
+	// values for the previously accessed attrs.
 	cache map[string]Attr
 }
 
-func RootAttrset() Attrset {
-	a := Attrset{"", []string{}, make(map[string]Attr)}
-	return a.GetAttr("").(Attrset)
+// root returns an empty Attrset that can be used as a base to
+// navigate the options tree.
+func root() Attrset {
+	return Attrset{"", []string{}, make(map[string]Attr)}
 }
 
-func (a *Attrset) GetAttr(attr string) Attr {
+// RootAttrset returns a fully functional root node of the
+// options tree.
+func RootAttrset() Attrset {
+	return AttrsetStartingFrom("")
+}
+
+// AttrsetStartingFrom returns an options subtree starting at
+// a given node.
+func AttrsetStartingFrom(node string) Attrset {
+	return root().GetAttr(node).(Attrset)
+}
+
+// GetAttr return an options subtree from a bigger (sub)tree.
+func (a Attrset) GetAttr(attr string) Attr {
 	if value, contains := a.cache[attr]; contains {
 		return value
 	} else {
@@ -67,6 +87,7 @@ func (a *Attrset) GetAttr(attr string) Attr {
 	}
 }
 
+// Browse interactively navigates the options tree recursively.
 func (a Attrset) Browse() error {
 	var prompt string
 	if len(a.Path) == 0 {
